@@ -2,10 +2,10 @@ import React, { useState, useEffect, createContext, useContext, ReactNode } from
 import {
   View,
   Text,
+  StyleSheet,
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  TextInput,
   Modal,
   Button,
 } from 'react-native';
@@ -29,17 +29,16 @@ export function HomeScreen() {
   const router = useRouter();
   const [drugs, setDrugs] = useState<Drug[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [selectedDrug, setSelectedDrug] = useState<Drug | null>(null);
 
   const { count, increment } = useContext(ClickCountContext);
 
-  const fetchDrugs = async (search: string = '', retries: number = 3) => {
+  const fetchDrugs = async () => {
     try {
       setError(null);
       const offset = Math.floor(Math.random() * 1000); // Add random offset
-      const query = search ? `search=brand_name:${search}` : `limit=50&skip=${offset}`;
+      const query = `limit=50&skip=${offset}`;
       const response = await fetch(
         `https://api.fda.gov/drug/event.json?${query}`
       );
@@ -57,13 +56,8 @@ export function HomeScreen() {
         setError('No drugs found');
       }
     } catch (err) {
-      if (retries > 0) {
-        console.warn(`Retrying... (${retries} attempts left)`);
-        fetchDrugs(search, retries - 1);
-      } else {
-        setError('Failed to fetch drug data. Please check your network connection and try again later.');
-        console.error('Error fetching drugs:', err);
-      }
+      setError('Failed to fetch drug data. Please try again later.');
+      console.error('Error fetching drugs:', err);
     } finally {
       setLoading(false);
     }
@@ -73,85 +67,52 @@ export function HomeScreen() {
     fetchDrugs();
   }, []);
 
-  const handleSearch = () => {
-    setLoading(true);
-    fetchDrugs(searchQuery);
-  };
-
   const renderDrugItem = ({ item }: { item: Drug }) => (
     <TouchableOpacity
-      style={{
-        backgroundColor: '#f9f9f9',
-        padding: 16,
-        borderRadius: 8,
-        marginBottom: 16,
-        shadowColor: '#000',
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 2,
-      }}
+      style={styles.card}
       onPress={() => {
         setSelectedDrug(item);
         increment();
       }}
     >
-      <View style={{ flexDirection: 'column' }}>
-        <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8 }}>{item.brand_name}</Text>
-        <Text style={{ fontSize: 14, color: '#555' }}>Generic Name: {item.generic_name}</Text>
-        <Text style={{ fontSize: 14, color: '#555' }}>Manufacturer: {item.manufacturer_name}</Text>
+      <View style={styles.cardContent}>
+        <Text style={styles.drugTitle}>{item.brand_name}</Text>
+        <Text style={styles.drugInfo}>Generic Name: {item.generic_name}</Text>
+        <Text style={styles.drugInfo}>
+          Manufacturer: {item.manufacturer_name}
+        </Text>
       </View>
     </TouchableOpacity>
   );
 
   return (
-    <View style={{ flex: 1, padding: 16, backgroundColor: '#fff' }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Welcome, {username}!</Text>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.appName}>HealthMate</Text>
+        <Text style={styles.welcomeText}>Welcome, {username}!</Text>
         <TouchableOpacity
-          style={{ backgroundColor: '#f44336', padding: 8, borderRadius: 4 }}
+          style={styles.logoutButton}
           onPress={() => router.replace('/')}
         >
-          <Text style={{ color: '#fff', fontWeight: 'bold' }}>Logout</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={{ flexDirection: 'row', marginBottom: 16 }}>
-        <TextInput
-          style={{
-            flex: 1,
-            borderColor: '#ccc',
-            borderWidth: 1,
-            borderRadius: 4,
-            padding: 8,
-            marginRight: 8,
-          }}
-          placeholder="Search drugs..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          onSubmitEditing={handleSearch}
-        />
-        <TouchableOpacity
-          style={{ backgroundColor: '#4CAF50', padding: 8, borderRadius: 4 }}
-          onPress={handleSearch}
-        >
-          <Text style={{ color: '#fff', fontWeight: 'bold' }}>Search</Text>
+          <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
       </View>
 
       {error ? (
-        <View style={{ alignItems: 'center', marginVertical: 16 }}>
-          <Text style={{ color: '#f44336', fontWeight: 'bold' }}>{error}</Text>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
         </View>
       ) : loading ? (
-        <ActivityIndicator size="large" color="#4CAF50" style={{ marginVertical: 16 }} />
+        <ActivityIndicator size="large" color="#4CAF50" style={styles.loader} />
       ) : (
         <FlatList
           data={drugs}
           renderItem={renderDrugItem}
           keyExtractor={(item) => item.id.toString()}
-          contentContainerStyle={{ paddingBottom: 16 }}
-          ListEmptyComponent={<Text style={{ textAlign: 'center', marginVertical: 16, color: '#777' }}>No drugs found</Text>}
+          contentContainerStyle={styles.list}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>No drugs found</Text>
+          }
         />
       )}
 
@@ -161,35 +122,30 @@ export function HomeScreen() {
         transparent={true}
         onRequestClose={() => setSelectedDrug(null)}
       >
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
-          <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 8, width: '80%', alignItems: 'center' }}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
             {selectedDrug && (
               <>
-                <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8 }}>{selectedDrug.brand_name}</Text>
-                <Text style={{ fontSize: 16, marginBottom: 8 }}>Generic Name: {selectedDrug.generic_name}</Text>
-                <Text style={{ fontSize: 16, marginBottom: 8 }}>Manufacturer: {selectedDrug.manufacturer_name}</Text>
-                <Button title="Close" onPress={() => setSelectedDrug(null)} />
+                <Text style={styles.modalTitle}>{selectedDrug.brand_name}</Text>
+                <Text style={styles.modalText}>
+                  Generic Name: {selectedDrug.generic_name}
+                </Text>
+                <Text style={styles.modalText}>
+                  Manufacturer: {selectedDrug.manufacturer_name}
+                </Text>
+                <Button
+                  title="Close"
+                  onPress={() => setSelectedDrug(null)}
+                  color="#008080" // Changed to #008080
+                />
               </>
             )}
           </View>
         </View>
       </Modal>
 
-      <TouchableOpacity
-        style={{
-          position: 'absolute',
-          bottom: 16,
-          right: 16,
-          backgroundColor: '#4CAF50',
-          width: 56,
-          height: 56,
-          borderRadius: 28,
-          justifyContent: 'center',
-          alignItems: 'center',
-          elevation: 8,
-        }}
-      >
-        <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>{count}</Text>
+      <TouchableOpacity style={styles.floatingButton}>
+        <Text style={styles.floatingButtonText}>{count}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -218,3 +174,117 @@ const App: React.FC = () => (
 );
 
 export default App;
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#fff',
+  },
+  header: {
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  appName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  welcomeText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  logoutButton: {
+    backgroundColor: '#f44336',
+    padding: 8,
+    borderRadius: 4,
+    marginTop: 8,
+  },
+  logoutText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  errorContainer: {
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  errorText: {
+    color: '#f44336',
+    fontWeight: 'bold',
+  },
+  loader: {
+    marginVertical: 16,
+  },
+  list: {
+    paddingBottom: 16,
+  },
+  emptyText: {
+    textAlign: 'center',
+    marginVertical: 16,
+    color: '#777',
+  },
+  card: {
+    backgroundColor: '#f9f9f9',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  cardContent: {
+    flexDirection: 'column',
+  },
+  drugTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  drugInfo: {
+    fontSize: 14,
+    color: '#555',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 8,
+    width: '80%',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  modalText: {
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  floatingButton: {
+    position: 'absolute',
+    bottom: 16,
+    right: 16,
+    backgroundColor: '#008080', // Changed to #008080
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
+  },
+  floatingButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+});
